@@ -1,3 +1,9 @@
+# Local Fork of SAN
+
+- To compare the performance of SAM blocks and Residual blocks. 
+- Implement SAM without custom CUDA kernels.
+
+
 # Exploring Self-attention for Image Recognition
 by Hengshuang Zhao, Jiaya Jia, and Vladlen Koltun, details are in [paper](https://hszhao.github.io/papers/cvpr20_san.pdf).
 
