@@ -216,5 +216,42 @@ def test_aggregation_zeropad():
     print('test case passed')
 
 
+def aggregation_zeropad_benchmark():
+    import time
+
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    kernel_size, stride, dilation = 5, 4, 2
+    padding = (dilation * (kernel_size - 1) + 1) // 2
+    n, c_x, c_w, in_height, in_width = 2, 8, 4, 9, 9
+    out_height = int((in_height + 2 * padding - (dilation * (kernel_size - 1) + 1)) / stride + 1)
+    out_width = int((in_width + 2 * padding - (dilation * (kernel_size - 1) + 1)) / stride + 1)
+    x = torch.randn(n, c_x, in_height, in_width, requires_grad=True).double().cuda()
+    w = torch.randn(n, c_w, pow(kernel_size, 2), out_height * out_width, requires_grad=True).double().cuda()
+
+
+    unfold_j = torch.nn.Unfold(kernel_size=kernel_size, dilation=dilation, padding=padding, stride=stride)
+    x2 = unfold_j(x).view(n, c_x // c_w, c_w, pow(kernel_size, 2), out_height * out_width)
+    y2 = (w.unsqueeze(1) * x2).sum(-2).view(n, c_x, out_height, out_width)
+    gx2 = torch.autograd.grad(y2.mean(), x, retain_graph=True)[0]
+    start = time.perf_counter_ns()
+    for i in range(10):
+        unfold_j = torch.nn.Unfold(kernel_size=kernel_size, dilation=dilation, padding=padding, stride=stride)
+        x2 = unfold_j(x).view(n, c_x // c_w, c_w, pow(kernel_size, 2), out_height * out_width)
+        y2 = (w.unsqueeze(1) * x2).sum(-2).view(n, c_x, out_height, out_width)
+        gx2 = torch.autograd.grad(y2.mean(), x, retain_graph=True)[0]
+    print(f'Pytorch time: {(time.perf_counter_ns() - start) / 1e6 / 10:.4f}ms')
+
+    y1 = aggregation_zeropad(x, w, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation)
+    # gx1 = torch.autograd.grad(y1.mean(), x, retain_graph=True)[0]
+    start = time.perf_counter_ns()
+    for i in range(10):
+        y1 = aggregation_zeropad(x, w, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation)
+        gx1 = torch.autograd.grad(y1.mean(), x, retain_graph=True)[0]
+    print(f'CUDA Kernel time: {(time.perf_counter_ns() - start) / 1e6 / 10:.4f}ms')
+
+
+
+
 if __name__ == '__main__':
     test_aggregation_zeropad()
