@@ -255,3 +255,4 @@ def aggregation_zeropad_benchmark():
 
 if __name__ == '__main__':
     test_aggregation_zeropad()
+    # aggregation_zeropad_benchmark()
